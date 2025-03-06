@@ -5,12 +5,20 @@ import {
   setFailed,
   debug,
   exportVariable,
+  warning,
 } from "@actions/core";
 import { resolve } from "path";
 import { waitUntilUsed } from "tcp-port-used";
 import { existsSync, mkdirSync } from "fs";
 import { logDir } from "./constants";
-import { host, storagePath, storageProvider, teamId, token } from "./inputs";
+import {
+  attempts,
+  host,
+  storagePath,
+  storageProvider,
+  teamId,
+  token,
+} from "./inputs";
 import { getPort } from "./getPort";
 
 async function main() {
@@ -55,4 +63,18 @@ async function main() {
   }
 }
 
-main().catch(setFailed);
+const retry = async (attempts: number, fn: () => Promise<void>) => {
+  let attempt = 0;
+  while (attempt < attempts) {
+    try {
+      await fn();
+    } catch (e) {
+      warning(e as Error);
+    }
+    attempt++;
+  }
+
+  throw new Error(`Turbo server failed to start after ${attempts} attempts!`);
+};
+
+retry(attempts, main).catch(setFailed);
